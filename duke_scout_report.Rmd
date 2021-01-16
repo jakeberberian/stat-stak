@@ -31,7 +31,7 @@ pitcher = "Herrick, Elijah"
 date = "2020-03-04"
 
 # Function cleans data up
-clean_data <- function(df, pitcher_name, date) {
+clean_rel_data <- function(df, pitcher_name, date) {
   
   df %>% 
     filter(Pitcher == pitcher_name) %>% 
@@ -54,7 +54,7 @@ clean_data <- function(df, pitcher_name, date) {
 
 # Creates plot of release point with cleaned data
 
-xyplot(RelHeight ~ RelSide, data = clean_data(duke, pitcher, date), groups = AutoPitchType,
+xyplot(RelHeight ~ RelSide, data = clean_rel_data(duke, pitcher, date), groups = AutoPitchType,
        auto.key = TRUE,
        aspect = "iso",
        xlim = c(-4.5, 4.5),
@@ -72,6 +72,15 @@ xyplot(RelHeight ~ RelSide, data = clean_data(duke, pitcher, date), groups = Aut
 
 
 ```{r pitch_loc}
+clean_loc_data <- function(df, pitcher_name, date){
+  
+  df %>% 
+    filter(Pitcher == pitcher_name) %>% 
+    filter(Date == date) %>% 
+    filter(AutoPitchType != "Undefined") %>% 
+    filter(BatterSide != "Undefined")
+}
+
 xyplot(PlateLocHeight ~ PlateLocSide | BatterSide, data = clean_data(duke, pitcher, date), groups = AutoPitchType,
        auto.key = TRUE,
        aspect = "iso",
@@ -83,7 +92,7 @@ xyplot(PlateLocHeight ~ PlateLocSide | BatterSide, data = clean_data(duke, pitch
        panel = function(...){
          panel.xyplot(...)
          panel.rect(inKzone, botKzone, outKzone, topKzone,
-                    border="black", lty=3)
+                    border = "black", lty = 3)
        }
 )
 ```
