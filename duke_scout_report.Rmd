@@ -128,7 +128,9 @@ duke %>%
            TaggedPitchType == "Sinker" ~ "FB",
            TRUE ~ "BB")) %>% 
   group_by(count, pitch_type) %>% 
-  summarize(n = n())
+  summarize(n = n()) %>% 
+  kbl() %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
 ```
 
 
