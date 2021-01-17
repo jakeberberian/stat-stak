@@ -9,7 +9,9 @@ knitr::opts_chunk$set(echo = FALSE, include = TRUE, message = FALSE, warning = F
 
 ```{r library}
 library(tidyverse)
+library(lubridate)
 library(lattice)
+library(kableExtra)
 ```
 
 
@@ -28,22 +30,28 @@ outKzone <- 0.95
 
 # Set pitcher and data. Need to figure out filters. Will this be R Shiny?
 pitcher = "Herrick, Elijah"
-date = "2020-03-04"
+year = "2019"
 
 # Function cleans data up
-clean_data <- function(df, pitcher_name, date) {
+clean_data <- function(df, pitcher_name, year) {
   
   df %>% 
     filter(Pitcher == pitcher_name) %>% 
-    filter(Date == date) %>% 
-    filter(AutoPitchType != "Undefined") %>% 
-    filter(BatterSide != "Undefined")
+    filter(year(Date) == year) %>% 
+    filter(TaggedPitchType != "Undefined") %>% 
+    filter(BatterSide != "Undefined") %>% 
+    mutate(pitch_type = case_when(
+      TaggedPitchType == "Fastball" ~ "FB",
+      TaggedPitchType == "Cutter" ~ "FB",
+      TaggedPitchType == "Sinker" ~ "FB",
+      TRUE ~ "BB"
+    ))
 }
 ```
 
 
 ```{r release_points}
-pitchnames <- unique(clean_data(duke, pitcher, date)$AutoPitchType)
+pitchnames <- unique(clean_data(duke, pitcher, year)$TaggedPitchType)
 
 myKey <- list(space = "right",
               border = TRUE,
@@ -54,30 +62,12 @@ myKey <- list(space = "right",
 
 # Creates plot of release point with cleaned data
 
-xyplot(RelHeight ~ RelSide, data = clean_data(duke, pitcher, date), groups = AutoPitchType,
+xyplot(RelHeight ~ RelSide, data = clean_data(duke, pitcher, year), groups = TaggedPitchType,
        auto.key = myKey,
        aspect = "iso",
        xlim = c(-4.5, 4.5),
        ylim = c(0, 7.5),
-       main = paste0("Release Points for ", pitcher, " on ", date), 
-       xlab = "Distance from Center\nCatcher's Perspective (ft.)",
-       ylab = "Height (ft.)",
-       panel = function(...){
-         panel.xyplot(...)
-         panel.rect(inKzone, botKzone, outKzone, topKzone,
-                    border="black", lty=3)
-       }
-)
-```
-
-
-```{r pitch_loc}
-xyplot(PlateLocHeight ~ PlateLocSide | BatterSide, data = clean_data(duke, pitcher, date), groups = AutoPitchType,
-       auto.key = myKey,
-       aspect = "iso",
-       xlim = c(-4.5, 4.5),
-       ylim = c(0, 7.5),
-       main = paste0("Pitch Locations for ", pitcher, " on ", date), 
+       main = paste0("Release Points for ", pitcher, " in ", year), 
        xlab = "Distance from Center\nCatcher's Perspective (ft.)",
        ylab = "Height (ft.)",
        panel = function(...){
@@ -89,6 +79,56 @@ xyplot(PlateLocHeight ~ PlateLocSide | BatterSide, data = clean_data(duke, pitch
 ```
 
 
+```{r pitch_loc}
+xyplot(PlateLocHeight ~ PlateLocSide | BatterSide * pitch_type, data = clean_data(duke, pitcher, year),
+       col = "black",
+       pch = 20,
+       aspect = "iso",
+       xlim = c(-4.5, 4.5),
+       ylim = c(0, 7.5),
+       main = paste0("Pitch Locations for ", pitcher, " in ", year), 
+       xlab = "Distance from Center\nCatcher's Perspective (ft.)",
+       ylab = "Height (ft.)",
+       panel = function(...){
+         panel.xyplot(...)
+         panel.rect(inKzone, botKzone, outKzone, topKzone,
+                    border = "red", lty = 5)
+       }
+)
+```
 
+
+```{r pitch_info}
+velos <- function(df, pitcher_name, year){
+  df %>% 
+    filter(Pitcher == pitcher_name) %>% 
+    filter(year(Date) == year) %>% 
+    filter(TaggedPitchType != "Undefined") %>% 
+    group_by(TaggedPitchType) %>% 
+    summarise(min = min(RelSpeed),
+              max = max(RelSpeed)) %>% 
+    mutate(range = paste0(round(min, 1), "-", round(max, 1))) %>% 
+    select(TaggedPitchType, range)
+}
+
+velos(duke, pitcher, year) %>% 
+  kbl() %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r count_pct}
+# FB includes fastballs, cutters, and sinkers.
+duke %>% 
+  filter(Pitcher == pitcher) %>% 
+  filter(TaggedPitchType != "Undefined") %>% 
+  mutate(count = paste0(Balls, "-", Strikes),
+         pitch_type = case_when(
+           TaggedPitchType == "Fastball" ~ "FB",
+           TaggedPitchType == "Cutter" ~ "FB",
+           TaggedPitchType == "Sinker" ~ "FB",
+           TRUE ~ "BB")) %>% 
+  group_by(count, pitch_type) %>% 
+  summarize(n = n())
+```
 
 
