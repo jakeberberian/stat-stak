@@ -12,6 +12,7 @@ library(tidyverse)
 library(lubridate)
 library(lattice)
 library(kableExtra)
+library(scales)
 ```
 
 
@@ -28,9 +29,10 @@ botKzone <- 1.6
 inKzone <- -.95
 outKzone <- 0.95
 
-# Set pitcher and data. Need to figure out filters. Will this be R Shiny?
-pitcher = "Herrick, Elijah"
-year = "2019"
+# Set pitcher, year, and data. Need to figure out filters. Will this be R Shiny?
+pitcher = "Stinson, Graeme"
+year = "2018"
+data = duke
 
 # Function cleans data up
 clean_data <- function(df, pitcher_name, year) {
@@ -39,7 +41,7 @@ clean_data <- function(df, pitcher_name, year) {
     filter(Pitcher == pitcher_name) %>% 
     filter(year(Date) == year) %>% 
     filter(TaggedPitchType != "Undefined") %>% 
-    filter(BatterSide != "Undefined") %>% 
+    filter(BatterSide != "Undefined")  %>% 
     mutate(pitch_type = case_when(
       TaggedPitchType == "Fastball" ~ "FB",
       TaggedPitchType == "Cutter" ~ "FB",
@@ -50,20 +52,14 @@ clean_data <- function(df, pitcher_name, year) {
 ```
 
 
-```{r release_points}
-pitchnames <- unique(clean_data(duke, pitcher, year)$TaggedPitchType)
-
-myKey <- list(space = "right",
-              border = TRUE,
-              cex.title = .8,
-              title = "pitch type",
-              text = pitchnames,
-              padding.text = 4)
-
+```{r plots, out.width=c('50%', '50%'), fig.show='hold'}
 # Creates plot of release point with cleaned data
-
-xyplot(RelHeight ~ RelSide, data = clean_data(duke, pitcher, year), groups = TaggedPitchType,
-       auto.key = myKey,
+xyplot(RelHeight ~ -RelSide, data = clean_data(data, pitcher, year), groups = TaggedPitchType,
+       auto.key = list(space = "right",
+                       border = TRUE,
+                       cex.title = 0.8,
+                       title = "Pitch Types",
+                       padding.text = 4),
        aspect = "iso",
        xlim = c(-4.5, 4.5),
        ylim = c(0, 7.5),
@@ -76,11 +72,8 @@ xyplot(RelHeight ~ RelSide, data = clean_data(duke, pitcher, year), groups = Tag
                     border = "black", lty = 3)
        }
 )
-```
 
-
-```{r pitch_loc}
-xyplot(PlateLocHeight ~ PlateLocSide | BatterSide * pitch_type, data = clean_data(duke, pitcher, year),
+xyplot(PlateLocHeight ~ -PlateLocSide | BatterSide * pitch_type, data = clean_data(data, pitcher, year),
        col = "black",
        pch = 20,
        aspect = "iso",
@@ -92,9 +85,7 @@ xyplot(PlateLocHeight ~ PlateLocSide | BatterSide * pitch_type, data = clean_dat
        panel = function(...){
          panel.xyplot(...)
          panel.rect(inKzone, botKzone, outKzone, topKzone,
-                    border = "red", lty = 5)
-       }
-)
+                    border = "red", lty = 5)}) 
 ```
 
 
@@ -104,6 +95,7 @@ velos <- function(df, pitcher_name, year){
     filter(Pitcher == pitcher_name) %>% 
     filter(year(Date) == year) %>% 
     filter(TaggedPitchType != "Undefined") %>% 
+    drop_na(RelSpeed) %>% 
     group_by(TaggedPitchType) %>% 
     summarise(min = min(RelSpeed),
               max = max(RelSpeed)) %>% 
@@ -111,26 +103,40 @@ velos <- function(df, pitcher_name, year){
     select(TaggedPitchType, range)
 }
 
-velos(duke, pitcher, year) %>% 
-  kbl() %>% 
-  kable_classic(full_width = F, html_font = "Cambria")
+velos(data, pitcher, year) %>% 
+  kbl(caption = paste0("Velo ranges for ", pitcher)) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "float_left") %>% 
+  kable_classic(html_font = "Cambria")
 ```
 
 ```{r count_pct}
 # FB includes fastballs, cutters, and sinkers.
-duke %>% 
-  filter(Pitcher == pitcher) %>% 
-  filter(TaggedPitchType != "Undefined") %>% 
-  mutate(count = paste0(Balls, "-", Strikes),
-         pitch_type = case_when(
+count_pct <- function(df, pitcher_name, year){
+  df %>% 
+    filter(Pitcher == pitcher_name,
+           year(Date) == year,
+           TaggedPitchType != "Undefined",
+           BatterSide != "Undefined") %>% 
+    mutate(count = paste0(Balls, "-", Strikes),
+           pitch_type = case_when(
            TaggedPitchType == "Fastball" ~ "FB",
            TaggedPitchType == "Cutter" ~ "FB",
            TaggedPitchType == "Sinker" ~ "FB",
-           TRUE ~ "BB")) %>% 
-  group_by(count, pitch_type) %>% 
-  summarize(n = n()) %>% 
-  kbl() %>% 
-  kable_classic(full_width = F, html_font = "Cambria")
+           TRUE ~ "BB")) %>%
+    group_by(BatterSide, count, pitch_type) %>% 
+    summarize(n = n()) %>% 
+    mutate(freq = percent(n / sum(n))) %>% 
+    filter(pitch_type == "FB") %>%
+    select(-c(pitch_type, n)) %>% 
+    pivot_wider(names_from = count, values_from = freq)
+}
+
+
+
+count_pct(data, pitcher, year) %>% 
+  kbl(caption = "% FB on given counts") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "float_right") %>% 
+  kable_classic(html_font = "Cambria")
 ```
 
 
