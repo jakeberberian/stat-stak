@@ -10,8 +10,6 @@ knitr::opts_chunk$set(echo = FALSE, include = TRUE, message = FALSE, warning = F
 ```{r library}
 library(tidyverse)
 library(lubridate)
-library(lattice)
-library(kableExtra)
 library(scales)
 ```
 
@@ -19,20 +17,13 @@ library(scales)
 ```{r data}
 # Need to figure out data read, such that we're constantly updating with the Trackman shared 
 # Possibly create a database, but access to Trackman shared needs to be constant. 
-duke <- read_csv("~/stat-stak/data/duke_games_trackman.csv")
+data <- read_csv("~/stat-stak/data/duke_games_trackman.csv")
 ```
 
 ```{r data clean}
-# Set zone 
-topKzone <- 3.5
-botKzone <- 1.6
-inKzone <- -.95
-outKzone <- 0.95
-
-# Set pitcher, year, and data. Need to figure out filters. Will this be R Shiny?
+# Set pitcher, year, and data.
 pitcher = "Stinson, Graeme"
 year = "2018"
-data = duke
 
 # Function cleans data up
 clean_data <- function(df, pitcher_name, year) {
@@ -52,43 +43,6 @@ clean_data <- function(df, pitcher_name, year) {
 ```
 
 
-```{r plots, out.width=c('50%', '50%'), fig.show='hold'}
-# Creates plot of release point with cleaned data
-xyplot(RelHeight ~ -RelSide, data = clean_data(data, pitcher, year), groups = TaggedPitchType,
-       auto.key = list(space = "right",
-                       border = TRUE,
-                       cex.title = 0.8,
-                       title = "Pitch Types",
-                       padding.text = 4),
-       aspect = "iso",
-       xlim = c(-4.5, 4.5),
-       ylim = c(0, 7.5),
-       main = paste0("Release Points for ", pitcher, " in ", year), 
-       xlab = "Distance from Center\nCatcher's Perspective (ft.)",
-       ylab = "Height (ft.)",
-       panel = function(...){
-         panel.xyplot(...)
-         panel.rect(inKzone, botKzone, outKzone, topKzone,
-                    border = "black", lty = 3)
-       }
-)
-
-xyplot(PlateLocHeight ~ -PlateLocSide | BatterSide * pitch_type, data = clean_data(data, pitcher, year),
-       col = "black",
-       pch = 20,
-       aspect = "iso",
-       xlim = c(-4.5, 4.5),
-       ylim = c(0, 7.5),
-       main = paste0("Pitch Locations for ", pitcher, " in ", year), 
-       xlab = "Distance from Center\nCatcher's Perspective (ft.)",
-       ylab = "Height (ft.)",
-       panel = function(...){
-         panel.xyplot(...)
-         panel.rect(inKzone, botKzone, outKzone, topKzone,
-                    border = "red", lty = 5)}) 
-```
-
-
 ```{r pitch_info}
 velos <- function(df, pitcher_name, year){
   df %>% 
@@ -103,10 +57,7 @@ velos <- function(df, pitcher_name, year){
     select(TaggedPitchType, range)
 }
 
-velos(data, pitcher, year) %>% 
-  kbl(caption = paste0("Velo ranges for ", pitcher)) %>% 
-  kable_styling(bootstrap_options = "striped", full_width = F, position = "float_left") %>% 
-  kable_classic(html_font = "Cambria")
+velos(data, pitcher, year)
 ```
 
 ```{r count_pct}
@@ -133,10 +84,7 @@ count_pct <- function(df, pitcher_name, year){
 
 
 
-count_pct(data, pitcher, year) %>% 
-  kbl(caption = "% FB on given counts") %>% 
-  kable_styling(bootstrap_options = "striped", full_width = F, position = "float_right") %>% 
-  kable_classic(html_font = "Cambria")
+count_pct(data, pitcher, year)
 ```
 
 
